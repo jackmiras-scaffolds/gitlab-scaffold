@@ -243,3 +243,9 @@ kubectl create secret generic -n production <YOUR_REPOSITORY_NAME>-registry-secr
     --from-file=.dockerconfigjson=$HOME/.docker/config.json \
     --type=kubernetes.io/dockerconfigjson
 ```
+
+### 5 - GitLab CI private runner
+
+In case you prefer not to use a share runner or have the need to run your custom runner of your own, you will have to
+specify your private runner in the YAML files under [.gitlab-ci](./.gitlab-ci) directory. You can see more about
+specifying private runner in the GitLab CI docs by clicking [here](https://docs.gitlab.com/runner/#tags).
