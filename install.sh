@@ -62,9 +62,9 @@ function set_docker_image() {
   language=$(echo "${1}" | cut -d= -f2)
 
   if [[ "${language}" == "python" ]]; then
-    sed -i "s/<DOCKER_IMAGE>/jackmiras\/ci:python3-alpine-1.0/g" .gitlab-ci.yml
+    sed -i "s/<DOCKER_IMAGE>/python:3-alpine/g" .gitlab-ci.yml
   elif [[ "${language}" == "javascript" ]]; then
-    sed -i "s/<DOCKER_IMAGE>/jackmiras\/ci:node-fermium-alpine-1.0/g" .gitlab-ci.yml
+    sed -i "s/<DOCKER_IMAGE>/node:fermium-alpine/g" .gitlab-ci.yml
   else
     echo "Language '${language}' is not supported." && exit 1
   fi
