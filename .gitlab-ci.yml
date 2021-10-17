@@ -1,0 +1,18 @@
+image: <DOCKER_IMAGE>
+
+stages:
+  - CodeQuality
+  - Building
+  - Deploy
+  - SmokeTests
+  - PromoteToProduction
+  - DNSCreation
+
+include:
+  - local: .gitlab-ci/code-quality.yml
+  - local: .gitlab-ci/build.yml
+  - local: .gitlab-ci/deploy.yml
+  - local: .gitlab-ci/end-to-end-tests.yml
+  - local: .gitlab-ci/integrations-tests.yml
+  - local: .gitlab-ci/promote-to-production.yml
+  - local: .gitlab-ci/dns-creation.yml

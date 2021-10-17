@@ -1,0 +1,75 @@
+deploy:
+  stage: Deploy
+  only:
+    refs:
+      - master
+      - develop
+  variables:
+    APP_TYPE: <APP_TYPE_VALUE>
+  script:
+    - |
+      # Defining AWS Account
+      if [[ "${CI_BUILD_REF_NAME}" == "develop" ]];then
+        readonly K8S_NAMESPACE="development"
+        export AWS_ACCESS_KEY_ID="${AWS_ACCESS_KEY_ID_DEV}"
+        export AWS_SECRET_ACCESS_KEY="${AWS_SECRET_ACCESS_KEY_DEV}"
+      fi
+
+      if [[ "${CI_BUILD_REF_NAME}" == "master" ]];then
+        readonly K8S_NAMESPACE="staging"
+        export AWS_ACCESS_KEY_ID="${AWS_ACCESS_KEY_ID_STAGING}"
+        export AWS_SECRET_ACCESS_KEY="${AWS_SECRET_ACCESS_KEY_STAGING}"
+      fi
+
+      # Setting up DOCKER_TAG variable
+      readonly TAG="${CI_REGISTRY}/${CI_PROJECT_PATH}:${CI_BUILD_REF:0:8}"
+      readonly DOCKER_TAG=$(echo "${TAG}" | sed 's/\//\\\//g') # Escaping forward slashes
+
+      # Generating credentials to access EKS.
+      aws eks update-kubeconfig --name "${EKS_CLUSTER}"
+
+      # Exporting current Docker image
+      readonly DEPLOYMENT="$(\
+        kubectl get deployments -n "${K8S_NAMESPACE}" | \
+        grep -i "${CI_PROJECT_NAME}" | \
+        awk '{ print $1 }' \
+      )"
+
+      readonly PREVIOUS_DOCKER_IMAGE="$(\
+        kubectl describe deployment "${DEPLOYMENT}" -n "${K8S_NAMESPACE}" | \
+        grep -i Image: | \
+        awk '{ print $1 }' \
+      )"
+
+      echo "${PREVIOUS_DOCKER_IMAGE}" >> previous-docker-image
+
+      # Replacing variables into service.yml
+      sed -i "s/<APP_NAME>/${CI_PROJECT_NAME}/g" .k8s/base/service.yml
+      sed -i "s/<K8S_NAMESPACE>/${K8S_NAMESPACE}/g" .k8s/base/service.yml
+
+      # Replacing variables into configmap.yml
+      sed -i "s/<APP_NAME>/${CI_PROJECT_NAME}/g" .k8s/base/configmap.yml
+      sed -i "s/<K8S_NAMESPACE>/${K8S_NAMESPACE}/g" .k8s/base/configmap.yml
+
+      # Replacing variables into deployment.yml
+      sed -i "s/<APP_TYPE>/${APP_TYPE}/g" .k8s/base/deployment.yml
+      sed -i "s/<DOCKER_TAG>/${DOCKER_TAG}/g" .k8s/base/deployment.yml
+      sed -i "s/<APP_NAME>/${CI_PROJECT_NAME}/g" .k8s/base/deployment.yml
+      sed -i "s/<K8S_NAMESPACE>/${K8S_NAMESPACE}/g" .k8s/base/deployment.yml
+      sed -i "s/<CONTAINER_NAME>/${CI_PROJECT_NAME}/g" .k8s/base/deployment.yml
+      sed -i "s/<IMAGE_PULL_SECRETS>/${CI_PROJECT_NAME}/g" .k8s/base/deployment.yml
+
+      # Replaceing variables into horizontal-pod-autoscaler.yml
+      sed -i "s/<APP_NAME>/${CI_PROJECT_NAME}/g" .k8s/base/horizontal-pod-autoscaler.yml
+      sed -i "s/<K8S_NAMESPACE>/${K8S_NAMESPACE}/g" .k8s/base/horizontal-pod-autoscaler.yml
+
+      # Applying base resources
+      kubectl apply -f .k8s/base/
+
+      # NOTE: Uncomment the following line in case you are using customize.
+      # kubectl apply -k ".k8s/worker/overlays/${K8S_NAMESPACE}"
+  artifacts:
+    when: on_success
+    expire_in: 1mins
+    paths:
+      - previous-docker-image

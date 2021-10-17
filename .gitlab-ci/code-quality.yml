@@ -1,0 +1,35 @@
+linting:
+  stage: CodeQuality
+  only:
+    refs:
+      - merge_requests
+  script: sh .gitlab-ci/scripts/linting.sh
+
+static-analysis:
+  stage: CodeQuality
+  only:
+    refs:
+      - merge_requests
+  script: sh .gitlab-ci/scripts/static-analysis.sh
+
+unit-tests:
+  stage: CodeQuality
+  only:
+    refs:
+      - merge_requests
+  script: sh .gitlab-ci/scripts/unit-tests.sh
+
+code-coverage:
+  stage: CodeQuality
+  only:
+    refs:
+      - merge_requests
+  script:
+    - |
+      readonly DESIRED_CODE_COVERAGE=80
+      readonly CODE_COVERAGE=$(sh .gitlab-ci/scripts/code-coverage.sh | tr -dc '0-9')
+
+      if [[ "${CODE_COVERAGE}" -lt "${DESIRED_CODE_COVERAGE}" ]]; then
+        echo "Desired code coverage level is ${DESIRED_CODE_COVERAGE}% found ${CODE_COVERAGE}%"
+        exit 1
+      fi

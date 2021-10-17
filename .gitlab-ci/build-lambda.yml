@@ -1,0 +1,9 @@
+build:
+  stage: Building
+  only:
+    refs:
+      - master
+      - develop
+  script:
+    - |
+      # Implement lambda build in here!

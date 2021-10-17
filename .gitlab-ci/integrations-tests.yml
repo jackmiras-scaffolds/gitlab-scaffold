@@ -1,0 +1,48 @@
+integrations-tests:
+  stage: SmokeTests
+  only:
+    refs:
+      - master
+  variables:
+    APP_TYPE: <APP_TYPE_VALUE>
+  script:
+    - |
+      function rollback() {
+        if [[ "${CI_BUILD_REF_NAME}" == "master" ]]; then
+          readonly K8S_NAMESPACE="staging"
+          export AWS_ACCESS_KEY_ID="${AWS_ACCESS_KEY_ID_STAGING}"
+          export AWS_SECRET_ACCESS_KEY="${AWS_SECRET_ACCESS_KEY_STAGING}"
+
+          # Generating credentials to access EKS.
+          aws eks update-kubeconfig --name "${EKS_CLUSTER}"
+
+          readonly DOCKER_TAG=$(cat previous-docker-image | sed 's/\//\\\//g')
+
+          readonly CURRENT_DOCKER_TAG=$(\
+            kubectl describe deployment "${CI_PROJECT_NAME}" -n
+              "${K8S_NAMESPACE}" | \
+              grep -i Image: | awk '{ print $2 }' \
+            )
+
+          echo "--------------------------------------------------------------------------------"
+          echo "¦                                 Rolling back                                 ¦"
+          echo "¦                                                                              ¦"
+          echo "¦ FROM ==> ${CURRENT_DOCKER_TAG} ¦"
+          echo "¦ TO ==> ${DOCKER_TAG}  ¦"
+          echo "--------------------------------------------------------------------------------"
+
+          # Replacing variables into deployment.yml
+          sed -i "s/<APP_TYPE>/${APP_TYPE}/g" .k8s/base/deployment.yml
+          sed -i "s/<DOCKER_TAG>/${DOCKER_TAG}/g" .k8s/base/deployment.yml
+          sed -i "s/<APP_NAME>/${CI_PROJECT_NAME}/g" .k8s/base/deployment.yml
+          sed -i "s/<K8S_NAMESPACE>/${K8S_NAMESPACE}/g" .k8s/base/deployment.yml
+          sed -i "s/<CONTAINER_NAME>/${CI_PROJECT_NAME}/g" .k8s/base/deployment.yml
+          sed -i "s/<IMAGE_PULL_SECRETS>/${CI_PROJECT_NAME}/g" .k8s/base/deployment.yml
+
+          # Applying base resources
+          kubectl apply -f .k8s/base/
+          exit 1
+        fi
+      }
+
+      sh .gitlab-ci/scripts/integrations-tests.sh || rollback

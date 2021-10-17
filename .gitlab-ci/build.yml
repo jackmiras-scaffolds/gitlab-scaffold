@@ -1,0 +1,32 @@
+build:
+  stage: Building
+  image:
+    name: gcr.io/kaniko-project/executor:debug
+    entrypoint: [""]
+  only:
+    refs:
+      - master
+      - develop
+  script:
+    - |
+      readonly DOCKER_TAG="${CI_REGISTRY}/${CI_PROJECT_PATH}:${CI_BUILD_REF:0:8}"
+
+      {
+        echo "{"
+        echo "  \"auths\": {"
+        echo "      \"$CI_REGISTRY\": {"
+        echo "          \"username\": \"$CI_REGISTRY_USER\","
+        echo "          \"password\": \"$CI_REGISTRY_PASSWORD\""
+        echo "      }"
+        echo "  }"
+        echo "}"
+      } > /kaniko/.docker/config.json
+
+      /kaniko/executor \
+        --context $CI_PROJECT_DIR \
+        --dockerfile $CI_PROJECT_DIR/Dockerfile \
+        --destination $DOCKER_TAG \
+        --cache=true \
+        --cache-ttl=120h
+
+      echo "Image: ${DOCKER_TAG}, pushed to GitLab CI Container Registry"
